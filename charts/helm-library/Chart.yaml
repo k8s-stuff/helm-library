@@ -16,13 +16,13 @@ sources:
   - https://github.com/k8s-stuff/helm-library
 
 maintainers:
-  - name: Kacper Wiśniewski
+  - name: Kxpi
     email: todo@example.com
     url: https://github.com/Kxpi
-  - name: Piotr Łączykowski
+  - name: piotrlaczykowski
     email: todo@example.com
     url: https://github.com/piotrlaczykowski
-  - name: Mateusz Mielewczyk
+  - name: mateusz-mielewczyk
     email: todo@example.com
     url: https://github.com/mateusz-mielewczyk
 
