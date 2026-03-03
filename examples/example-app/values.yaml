@@ -27,5 +27,8 @@ resources:
     cpu: 200m
     memory: 256Mi
 
+serviceMonitor:
+  enabled: false
+
 appSettings:
   greeting: "Hello from helm-library!"

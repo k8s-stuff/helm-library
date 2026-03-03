@@ -3,7 +3,7 @@ ServiceMonitor template
 Requires Prometheus Operator CRDs to be installed
 */}}
 {{- define "helm-lib.deployment.servicemonitor" -}}
-{{- if .Values.serviceMonitor.enabled }}
+{{- if (.Values.serviceMonitor).enabled }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
