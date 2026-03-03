@@ -17,10 +17,13 @@ sources:
 
 maintainers:
   - name: Kacper Wiśniewski
+    email: todo@example.com
     url: https://github.com/Kxpi
   - name: Piotr Łączykowski
+    email: todo@example.com
     url: https://github.com/piotrlaczykowski
   - name: Mateusz Mielewczyk
+    email: todo@example.com
     url: https://github.com/mateusz-mielewczyk
 
 keywords:
