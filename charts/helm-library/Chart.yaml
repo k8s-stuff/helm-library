@@ -1,0 +1,44 @@
+apiVersion: v2
+name: helm-library
+description: >-
+  A Helm library chart providing reusable templates for Kubernetes deployments,
+  services, ingress, autoscaling, secrets management, TLS, and monitoring.
+
+type: library
+
+version: 1.0.0
+appVersion: "1.0.0"
+
+kubeVersion: ">=1.19.0-0"
+
+home: https://github.com/k8s-stuff/helm-library
+sources:
+  - https://github.com/k8s-stuff/helm-library
+
+maintainers:
+  - name: Kacper Wiśniewski
+    url: https://github.com/Kxpi
+  - name: Piotr Łączykowski
+    url: https://github.com/piotrlaczykowski
+  - name: Mateusz Mielewczyk
+    url: https://github.com/mateusz-mielewczyk
+
+keywords:
+  - library
+  - helm
+  - kubernetes
+  - deployment
+  - service
+  - ingress
+  - hpa
+  - secrets
+  - tls
+  - monitoring
+
+annotations:
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/signKey: ""
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial open-source release

@@ -1,0 +1,206 @@
+{{- define "helm-lib.deployment.deploy" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helm-lib.fullname" . }}
+  labels:
+    {{- include "helm-lib.labels" . | nindent 4 }}
+spec:
+  {{- if and (not (.Values.autoscaling).enabled) (not (.Values.keda).enabled) }}
+  replicas: {{ .Values.replicaCount | default 1 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "helm-lib.selectorLabels" . | nindent 6 }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      annotations:
+        {{- if .Values.forceReload }}
+        force-reload: {{ randAlphaNum 5 | quote }}
+        {{- end }}
+        checksum/appSettings: {{ .Values.appSettings | default dict | toYaml | sha256sum }}
+        checksum/application: {{ .Values.application | default dict | toYaml | sha256sum }}
+        checksum/service: {{ .Values.service | default dict | toYaml | sha256sum }}
+        checksum/tls: {{ .Values.tls | default dict | toYaml | sha256sum }}
+        checksum/extra-secret-env: {{ .Values.extraSecretEnv | default dict | toYaml | sha256sum }}
+        checksum/extra-env: {{ .Values.extraEnv | default list | toYaml | sha256sum }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "helm-lib.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      serviceAccountName: {{ include "helm-lib.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or (.Values.initContainer).caBundleEnabled .Values.initContainers }}
+      initContainers:
+        {{- if (.Values.initContainer).caBundleEnabled }}
+        - name: ca-bundle-init
+          image: "{{ required "Image repository is required!" (.Values.image).repository }}:{{ (.Values.image).tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ (.Values.image).pullPolicy | default "IfNotPresent" }}
+          {{- if .Values.securityContext }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- end }}
+          command:
+            - /bin/sh
+          args:
+            - -c
+            - /mnt/scripts/combine-certs.sh
+          volumeMounts:
+            - name: scripts
+              mountPath: /mnt/scripts
+            - name: cert-combine
+              mountPath: /mnt/ca-certs
+            - name: authorities
+              mountPath: /mnt/authorities
+        {{- end }}
+        {{- if .Values.initContainers }}
+        {{- tpl (toYaml .Values.initContainers) . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ required "Image repository is required!" (.Values.image).repository }}:{{ (.Values.image).tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ (.Values.image).pullPolicy | default "IfNotPresent" }}
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.args }}
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ (include "helm-lib.values.service.targetPort" .) }}
+              protocol: TCP
+          {{- if or (not .Values.healthChecks) (eq (.Values.healthChecks.enabled | toString | lower) "true") }}
+          startupProbe:
+            httpGet:
+              path: {{ ((.Values.healthChecks).startupProbe).path | default "/health/live" }}
+              port: http
+              scheme: {{ include "helm-lib.values.service.targetScheme" . }}
+            periodSeconds: {{ ((.Values.healthChecks).startupProbe).periodSeconds | default 5 }}
+            failureThreshold: {{ ((.Values.healthChecks).startupProbe).failureThreshold | default 30 }}
+            successThreshold: {{ ((.Values.healthChecks).startupProbe).successThreshold | default 1 }}
+            initialDelaySeconds: {{ ((.Values.healthChecks).startupProbe).initialDelaySeconds | default 10 }}
+            timeoutSeconds: {{ ((.Values.healthChecks).startupProbe).timeoutSeconds | default 3 }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ ((.Values.healthChecks).livenessProbe).path | default "/health/live" }}
+              port: http
+              scheme: {{ include "helm-lib.values.service.targetScheme" . }}
+            periodSeconds: {{ ((.Values.healthChecks).livenessProbe).periodSeconds | default 10 }}
+            failureThreshold: {{ ((.Values.healthChecks).livenessProbe).failureThreshold | default 10 }}
+            successThreshold: {{ ((.Values.healthChecks).livenessProbe).successThreshold | default 1 }}
+            initialDelaySeconds: {{ ((.Values.healthChecks).livenessProbe).initialDelaySeconds | default 1 }}
+            timeoutSeconds: {{ ((.Values.healthChecks).livenessProbe).timeoutSeconds | default 3 }}
+
+          readinessProbe:
+            httpGet:
+              path: {{ ((.Values.healthChecks).readinessProbe).path | default "/health/ready" }}
+              port: http
+              scheme: {{ include "helm-lib.values.service.targetScheme" . }}
+            periodSeconds: {{ ((.Values.healthChecks).readinessProbe).periodSeconds | default 10 }}
+            failureThreshold: {{ ((.Values.healthChecks).readinessProbe).failureThreshold | default 3 }}
+            successThreshold: {{ ((.Values.healthChecks).readinessProbe).successThreshold | default 1 }}
+            initialDelaySeconds: {{ ((.Values.healthChecks).readinessProbe).initialDelaySeconds | default 1 }}
+            timeoutSeconds: {{ ((.Values.healthChecks).readinessProbe).timeoutSeconds | default 3 }}
+          {{- end }}
+          env:
+            {{- if .Values.extraEnv }}
+            {{ toYaml .Values.extraEnv | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "helm-lib.secret-env-name" . }}
+                optional: false
+          resources:
+          {{- if (.Values.verticalPodAutoscaler).enabled }}
+            requests:
+            {{- toYaml .Values.resources.requests | nindent 14 }}
+          {{- else }}
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: app-settings
+              mountPath: "{{ include "helm-lib.values.application.configPath" . }}/{{ include "helm-lib.values.configFileName" . }}"
+              subPath: {{ include "helm-lib.values.configFileName" . | quote }}
+              readOnly: true
+            {{- if (.Values.initContainer).caBundleEnabled }}
+            - name: cert-combine
+              mountPath: {{ include "helm-lib.values.ca-bundle-path" . }}
+              readOnly: true
+            {{- end }}
+            {{- if (.Values.tls).enabled }}
+            - name: tls
+              readOnly: true
+              mountPath: {{ include "helm-lib.values.tls.mountPath" . }}
+            {{- end }}
+          {{- if .Values.volumeMounts }}
+            {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: app-settings
+          secret:
+            secretName: {{ include "helm-lib.secret-app-settings" . }}
+            optional: false
+        {{- if (.Values.tls).enabled }}
+        - name: tls
+          secret:
+            secretName: {{ include "helm-lib.secret-tls" . }}
+            optional: false
+        {{- end }}
+        {{- if (.Values.initContainer).caBundleEnabled }}
+        - name: cert-combine
+          emptyDir: {}
+        - name: scripts
+          secret:
+            secretName: {{ include "helm-lib.secret-scripts" . }}
+            optional: false
+            defaultMode: 0555
+        - name: authorities
+          secret:
+            secretName: {{ include "helm-lib.secret-authorities" . }}
+            optional: false
+        {{- end }}
+      {{- if .Values.volumes }}
+        {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        {{- if .Values.affinity }}
+        {{- tpl (toYaml .Values.affinity) . | nindent 8 }}
+        {{ else }}
+          {{- toYaml (fromYaml (include "helm-lib.values.affinity" .)) | nindent 8 }}
+        {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}
