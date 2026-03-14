@@ -1,0 +1,277 @@
+# =============================================================================
+# GLOBAL CONFIGURATION
+# =============================================================================
+
+# Basic deployment settings
+replicaCount: 1
+forceReload: false
+strategy: {}
+  # type: RollingUpdate
+  # rollingUpdate:
+  #   maxSurge: 0
+  #   maxUnavailable: 1
+
+# Naming overrides
+nameOverride: ""
+fullnameOverride: ""
+
+# Image pull secrets
+imagePullSecrets: []
+
+# =============================================================================
+# CONTAINER IMAGES
+# =============================================================================
+
+# Main application image
+image:
+  repository: alpine
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+# Container command and args (optional)
+# Override the default ENTRYPOINT and CMD from the container image
+command: []
+# - /bin/sh
+# - -c
+
+args: []
+# - "your-command-here"
+
+# Init container configuration
+initContainer:
+  caBundleEnabled: false
+
+# Custom init containers
+# Array of init container definitions that will be added to the deployment
+initContainers: []
+# - name: init-myservice
+#   image: busybox:1.28
+#   command: ['sh', '-c', 'until nslookup myservice; do echo waiting for myservice; sleep 2; done;']
+# - name: init-mydb
+#   image: busybox:1.28
+#   command: ['sh', '-c', 'until nslookup mydb; do echo waiting for mydb; sleep 2; done;']
+
+# =============================================================================
+# POD & DEPLOYMENT CONFIGURATION
+# =============================================================================
+
+# Service account configuration
+serviceAccount:
+  create: false
+  automount: false
+  annotations: {}
+  name: ""
+
+# Pod configuration
+podAnnotations: {}
+podLabels: {}
+
+# Security contexts
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Host aliases
+hostAliases: []
+# - ip: "1.2.3.4"
+#   hostnames:
+#   - "exmaple.com"
+
+# =============================================================================
+# NETWORKING
+# =============================================================================
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  targetScheme: HTTP
+  annotations: {}
+  additionalPorts: []
+    # - name: metrics
+    #   port: 9090
+    #   targetPort: 9090
+    #   protocol: TCP
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: app.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# =============================================================================
+# HEALTH CHECKS & MONITORING
+# =============================================================================
+
+healthChecks:
+  enabled: true
+  startupProbe:
+    path: "/health/live"
+    periodSeconds: 5
+    failureThreshold: 30
+    successThreshold: 1
+    initialDelaySeconds: 10
+    timeoutSeconds: 3
+  livenessProbe:
+    path: "/health/live"
+    periodSeconds: 10
+    failureThreshold: 10
+    successThreshold: 1
+    initialDelaySeconds: 1
+    timeoutSeconds: 3
+  readinessProbe:
+    path: "/health/ready"
+    periodSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+    initialDelaySeconds: 1
+    timeoutSeconds: 3
+
+# ServiceMonitor configuration (requires Prometheus Operator)
+serviceMonitor:
+  enabled: false
+  labels: {}
+  annotations: {}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+
+# =============================================================================
+# SCALING & RESOURCES
+# =============================================================================
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+
+# =============================================================================
+# SECURITY
+# =============================================================================
+
+# TLS configuration
+tls:
+  enabled: false
+  certFile: ""
+  keyFile: ""
+  mountPath: ""
+
+# =============================================================================
+# STORAGE
+# =============================================================================
+
+# Volumes
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Volume mounts
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+# =============================================================================
+# SCHEDULING
+# =============================================================================
+
+# Node selection
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Pod affinity and anti-affinity
+affinity: {}
+
+# =============================================================================
+# APPLICATION CONFIGURATION
+# =============================================================================
+
+application:
+  configPath: "/app"
+  configFileName: ""
+  trustedCertificateAuthorities: {}
+
+# Application settings and environment variables
+appSettings: {}
+extraEnv: []
+extraSecretEnv: {}
+
+# =============================================================================
+# EXTERNAL SECRETS
+# =============================================================================
+
+# SecretStore configuration
+# Creates a SecretStore resource for external-secrets operator
+secretStore: {}
+  # annotations: {}
+  # spec:
+  #   provider:
+  #     gcpsm:
+  #       projectID: "my-project"
+  #       auth:
+  #         secretRef:
+  #           secretAccessKeySecretRef:
+  #             name: gcpsm-secret
+  #             key: secret-access-credentials
+
+# ExternalSecret configuration
+# Creates ExternalSecret resources that fetch secrets from external providers
+externalSecrets: {}
+  # my-app-secret:
+  #   annotations: {}
+  #   refreshInterval: 1h
+  #   secretStoreRef:
+  #     name: my-secretstore
+  #     kind: SecretStore
+  #   target:
+  #     name: my-app-secret
+  #     creationPolicy: Owner
+  #   data:
+  #     - secretKey: username
+  #       remoteRef:
+  #         key: my-secret
+  #         property: username
+  #     - secretKey: password
+  #       remoteRef:
+  #         key: my-secret
+  #         property: password
+  #   # Or use dataFrom to fetch all keys from a secret
+  #   # dataFrom:
+  #   #   - extract:
+  #   #       key: my-secret

@@ -1,0 +1,31 @@
+{{- define "helm-lib.deployment.service" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helm-lib.fullname" . }}
+  {{- if (.Values.service).annotations }}
+  {{- with (.Values.service).annotations }}
+  annotations:
+      {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  labels:
+    {{- include "helm-lib.labels" . | nindent 4 }}
+spec:
+  type: {{ include "helm-lib.values.service.type" . }}
+  ports:
+    - port: {{ (include "helm-lib.values.service.port" .) }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    {{- if (.Values.service).additionalPorts }}
+    {{- range (.Values.service).additionalPorts }}
+    - port: {{ .port }}
+      targetPort: {{ .targetPort | default .port }}
+      protocol: {{ .protocol | default "TCP" }}
+      name: {{ .name }}
+    {{- end }}
+    {{- end }}
+  selector:
+    {{- include "helm-lib.selectorLabels" . | nindent 4 }}
+{{- end }}
